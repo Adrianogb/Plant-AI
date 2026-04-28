@@ -346,17 +346,39 @@ class _MainScreenState extends State<MainScreen> {
 
   Widget _buildPhotoSlot(int index) {
     bool hasImage = index < _selectedImages.length;
-    return Container(
-      width: 50, height: 50,
-      decoration: BoxDecoration(
-        color: hasImage ? const Color(0xFF54E98A).withOpacity(0.1) : Colors.white.withOpacity(0.02),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: hasImage ? const Color(0xFF54E98A) : Colors.white.withOpacity(0.08), width: 1.5),
-        boxShadow: hasImage ? [BoxShadow(color: const Color(0xFF54E98A).withOpacity(0.2), blurRadius: 8)] : [],
-      ),
-      child: hasImage 
-          ? ClipRRect(borderRadius: BorderRadius.circular(10), child: Image.file(_selectedImages[index], fit: BoxFit.cover))
-          : Icon(LucideIcons.image, color: Colors.white.withOpacity(0.1), size: 20),
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          width: 50, height: 50,
+          decoration: BoxDecoration(
+            color: hasImage ? const Color(0xFF54E98A).withOpacity(0.1) : Colors.white.withOpacity(0.02),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: hasImage ? const Color(0xFF54E98A) : Colors.white.withOpacity(0.08), width: 1.5),
+            boxShadow: hasImage ? [BoxShadow(color: const Color(0xFF54E98A).withOpacity(0.2), blurRadius: 8)] : [],
+          ),
+          child: hasImage 
+              ? ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.file(_selectedImages[index], fit: BoxFit.cover))
+              : Icon(LucideIcons.image, color: Colors.white.withOpacity(0.1), size: 20),
+        ),
+        if (hasImage)
+          Positioned(
+            top: -8,
+            right: -8,
+            child: GestureDetector(
+              onTap: () {
+                setState(() {
+                  _selectedImages.removeAt(index);
+                });
+              },
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                child: const Icon(LucideIcons.x, color: Colors.white, size: 12),
+              ),
+            ),
+          ),
+      ],
     );
   }
 
