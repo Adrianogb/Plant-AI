@@ -51,13 +51,41 @@ class _MainScreenState extends State<MainScreen> {
 
   Future<void> _pickImage() async {
     if (_selectedImages.length >= 5) return;
-    
-    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
-    if (image != null) {
-      setState(() {
-        _selectedImages.add(File(image.path));
-      });
-    }
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1D2022),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.white12, borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: const Icon(LucideIcons.camera, color: Color(0xFF54E98A)),
+              title: const Text('Tirar Foto', style: TextStyle(fontWeight: FontWeight.bold)),
+              onTap: () async {
+                Navigator.pop(context);
+                final XFile? image = await _picker.pickImage(source: ImageSource.camera, imageQuality: 80);
+                if (image != null) setState(() => _selectedImages.add(File(image.path)));
+              },
+            ),
+            ListTile(
+              leading: const Icon(LucideIcons.image, color: Color(0xFF54E98A)),
+              title: const Text('Escolher da Galeria', style: TextStyle(fontWeight: FontWeight.bold)),
+              onTap: () async {
+                Navigator.pop(context);
+                final XFile? image = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+                if (image != null) setState(() => _selectedImages.add(File(image.path)));
+              },
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _identifyPlant() async {
