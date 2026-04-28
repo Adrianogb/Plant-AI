@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../services/ai_assistant_service.dart';
-import 'dart:ui';
 
 class ChatScreen extends StatefulWidget {
   final String? initialPlantName;
@@ -23,12 +21,12 @@ class _ChatScreenState extends State<ChatScreen> {
     super.initState();
     if (widget.initialPlantName != null) {
       _messages.add({
-        'text': "Olá! Notei que você identificou uma **${widget.initialPlantName}**. Como posso ajudar você a cuidar dela hoje? 🌿",
+        'text': "Olá! Sou o Especialista PlantAI. Analisei sua foto e confirmo que é uma **${widget.initialPlantName}**. Como posso ajudar com os cuidados?",
         'isUser': false,
       });
     } else {
       _messages.add({
-        'text': "Olá! Sou seu assistente botânico do PlantAI. Sobre qual planta você gostaria de conversar hoje? 🍃",
+        'text': "Olá! Sou o Especialista PlantAI. Como posso ajudar você hoje? 🌿",
         'isUser': false,
       });
     }
@@ -44,10 +42,15 @@ class _ChatScreenState extends State<ChatScreen> {
       _controller.clear();
     });
 
-    final response = await _aiService.sendMessage(text);
+    final result = await _aiService.sendMessage(text);
 
     setState(() {
-      _messages.add({'text': response, 'isUser': false});
+      _messages.add({
+        'text': result['text'],
+        'isUser': false,
+        'component': result['component'],
+        'artifact': result['artifact'],
+      });
       _isTyping = false;
     });
   }
@@ -59,30 +62,7 @@ class _ChatScreenState extends State<ChatScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(LucideIcons.chevronLeft, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: const Color(0xFF54E98A).withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(LucideIcons.bot, color: Color(0xFF54E98A), size: 20),
-            ),
-            const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Especialista PlantAI', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                Text('Sempre online', style: TextStyle(fontSize: 12, color: Colors.white.withOpacity(0.5))),
-              ],
-            ),
-          ],
-        ),
+        title: const Text('Especialista PlantAI', style: TextStyle(fontWeight: FontWeight.bold)),
       ),
       body: Column(
         children: [
@@ -92,19 +72,18 @@ class _ChatScreenState extends State<ChatScreen> {
               itemCount: _messages.length,
               itemBuilder: (context, index) {
                 final msg = _messages[index];
-                return _buildMessageBubble(msg['text'], msg['isUser']);
+                return Column(
+                  crossAxisAlignment: msg['isUser'] ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                  children: [
+                    _buildMessageBubble(msg['text'], msg['isUser']),
+                    if (msg['component'] != null) _buildGenerativeUI(msg['component']),
+                    if (msg['artifact'] != null) _buildArtifactAction(msg['artifact']),
+                  ],
+                );
               },
             ),
           ),
-          if (_isTyping)
-            Padding(
-              padding: const EdgeInsets.only(left: 20, bottom: 10),
-              child: Row(
-                children: [
-                  Text('IA está escrevendo...', style: TextStyle(color: Colors.white.withOpacity(0.3), fontSize: 12)),
-                ],
-              ),
-            ),
+          if (_isTyping) const Padding(padding: EdgeInsets.all(8.0), child: LinearProgressIndicator(color: Color(0xFF54E98A), backgroundColor: Colors.transparent)),
           _buildInputArea(),
         ],
       ),
@@ -112,28 +91,93 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _buildMessageBubble(String text, bool isUser) {
-    return Align(
-      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isUser ? const Color(0xFF54E98A) : Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(text, style: TextStyle(color: isUser ? Colors.black : Colors.white, height: 1.4)),
+    );
+  }
+
+  Widget _buildGenerativeUI(Map<String, dynamic> component) {
+    if (component['type'] == 'care_card') {
+      final data = component['data'];
+      return Container(
+        margin: const EdgeInsets.only(bottom: 16, top: 4),
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(colors: [Color(0xFF1D2022), Color(0xFF0B0F10)]),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: const Color(0xFF54E98A).withOpacity(0.2)),
+        ),
+        child: Column(
+          children: [
+            const Row(children: [Icon(LucideIcons.leaf, color: Color(0xFF54E98A), size: 16), SizedBox(width: 8), Text('GUIA DE CUIDADOS', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF54E98A)))]),
+            const SizedBox(height: 16),
+            _buildCareRow(LucideIcons.droplets, 'Rega', data['watering']),
+            _buildCareRow(LucideIcons.sun, 'Luz', data['light']),
+            _buildCareRow(LucideIcons.thermometer, 'Temp', data['temp']),
+            _buildCareRow(LucideIcons.award, 'Nível', data['difficulty']),
+          ],
+        ),
+      );
+    }
+    return const SizedBox.shrink();
+  }
+
+  Widget _buildCareRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: Colors.white.withOpacity(0.3)),
+          const SizedBox(width: 12),
+          Text(label, style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 14)),
+          const Spacer(),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildArtifactAction(Map<String, dynamic> artifact) {
+    return GestureDetector(
+      onTap: () => _showArtifactDialog(artifact),
       child: Container(
         margin: const EdgeInsets.only(bottom: 16),
-        padding: const EdgeInsets.all(16),
-        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
-        decoration: BoxDecoration(
-          color: isUser ? const Color(0xFF54E98A) : Colors.white.withOpacity(0.05),
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(20),
-            topRight: const Radius.circular(20),
-            bottomLeft: Radius.circular(isUser ? 20 : 0),
-            bottomRight: Radius.circular(isUser ? 0 : 20),
-          ),
-          border: isUser ? null : Border.all(color: Colors.white.withOpacity(0.1)),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(color: const Color(0xFF54E98A).withOpacity(0.1), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFF54E98A).withOpacity(0.3))),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(LucideIcons.fileText, color: Color(0xFF54E98A), size: 20),
+            const SizedBox(width: 8),
+            Text(artifact['title'], style: const TextStyle(color: Color(0xFF54E98A), fontWeight: FontWeight.bold)),
+          ],
         ),
-        child: Text(
-          text,
-          style: TextStyle(
-            color: isUser ? const Color(0xFF003919) : Colors.white,
-            fontSize: 15,
-            height: 1.4,
+      ),
+    );
+  }
+
+  void _showArtifactDialog(Map<String, dynamic> artifact) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF101415),
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.8,
+        padding: const EdgeInsets.all(24),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(artifact['title'], style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 20),
+              Text(artifact['content'], style: const TextStyle(fontSize: 16, height: 1.6, color: Colors.white70)),
+            ],
           ),
         ),
       ),
@@ -143,46 +187,22 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget _buildInputArea() {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 10, 20, 30),
-      decoration: BoxDecoration(
-        color: const Color(0xFF101415),
-        border: Border(top: BorderSide(color: Colors.white.withOpacity(0.05))),
-      ),
       child: Row(
         children: [
           Expanded(
-            child: Container(
-              height: 56,
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.05),
-                borderRadius: BorderRadius.circular(28),
-                border: Border.all(color: Colors.white.withOpacity(0.1)),
+            child: TextField(
+              controller: _controller,
+              decoration: InputDecoration(
+                hintText: 'Pergunte algo...',
+                filled: true,
+                fillColor: Colors.white.withOpacity(0.05),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(30), borderSide: BorderSide.none),
               ),
-              child: TextField(
-                controller: _controller,
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  hintText: 'Pergunte sobre sua planta...',
-                  hintStyle: TextStyle(color: Colors.white.withOpacity(0.3)),
-                  border: InputBorder.none,
-                ),
-                onSubmitted: (_) => _handleSend(),
-              ),
+              onSubmitted: (_) => _handleSend(),
             ),
           ),
-          const SizedBox(width: 12),
-          GestureDetector(
-            onTap: _handleSend,
-            child: Container(
-              width: 56,
-              height: 56,
-              decoration: const BoxDecoration(
-                color: Color(0xFF54E98A),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(LucideIcons.send, color: Color(0xFF003919), size: 24),
-            ),
-          ),
+          const SizedBox(width: 8),
+          IconButton(icon: const Icon(LucideIcons.send, color: Color(0xFF54E98A)), onPressed: _handleSend),
         ],
       ),
     );
