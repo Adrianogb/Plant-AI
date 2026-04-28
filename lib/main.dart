@@ -203,7 +203,7 @@ class _MainScreenState extends State<MainScreen> {
                   _buildUploadCard(),
                   const SizedBox(height: 24),
                   _buildStatsGrid(),
-                  const SizedBox(height: 120),
+                  const SizedBox(height: 160), // Aumentado de 120 para 160 para garantir visibilidade acima da barra flutuante
                 ],
               ),
             ),
@@ -275,7 +275,7 @@ class _MainScreenState extends State<MainScreen> {
           GestureDetector(
             onTap: _pickImage,
             child: Container(
-              height: 300,
+              height: 260, // Reduzido ligeiramente para caber melhor na tela
               width: double.infinity,
               decoration: BoxDecoration(
                 color: const Color(0xFF191C1E).withOpacity(0.5),
@@ -310,28 +310,31 @@ class _MainScreenState extends State<MainScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 24), // Aumentado o respiro
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: List.generate(5, (index) => _buildPhotoSlot(index)),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 24), // Aumentado o respiro antes do botão
           GestureDetector(
             onTap: _selectedImages.isNotEmpty ? _identifyPlant : null,
             child: Container(
-              width: double.infinity, height: 56,
+              width: double.infinity, height: 60, // Aumentado ligeiramente a altura do botão
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: _selectedImages.isNotEmpty 
                       ? [const Color(0xFF2ECC71), const Color(0xFF00B596)]
                       : [Colors.white10, Colors.white10],
                 ),
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(18),
+                boxShadow: _selectedImages.isNotEmpty ? [
+                  BoxShadow(color: const Color(0xFF2ECC71).withOpacity(0.3), blurRadius: 20, offset: const Offset(0, 8))
+                ] : [],
               ),
               child: Center(
                 child: Text(
                   'IDENTIFICAR PLANTA',
-                  style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.5, color: _selectedImages.isNotEmpty ? const Color(0xFF00210C) : Colors.white24),
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 1.5, color: _selectedImages.isNotEmpty ? const Color(0xFF00210C) : Colors.white24),
                 ),
               ),
             ),
@@ -346,9 +349,10 @@ class _MainScreenState extends State<MainScreen> {
     return Container(
       width: 50, height: 50,
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: hasImage ? const Color(0xFF54E98A) : Colors.white.withOpacity(0.1)),
+        color: hasImage ? const Color(0xFF54E98A).withOpacity(0.1) : Colors.white.withOpacity(0.02),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: hasImage ? const Color(0xFF54E98A) : Colors.white.withOpacity(0.08), width: 1.5),
+        boxShadow: hasImage ? [BoxShadow(color: const Color(0xFF54E98A).withOpacity(0.2), blurRadius: 8)] : [],
       ),
       child: hasImage 
           ? ClipRRect(borderRadius: BorderRadius.circular(10), child: Image.file(_selectedImages[index], fit: BoxFit.cover))
