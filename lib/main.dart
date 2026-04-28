@@ -412,12 +412,12 @@ class ReticlePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final paint = Paint()..color = color..strokeWidth = 2..style = PaintingStyle.stroke;
     const length = 20.0;
-    canvas.drawLine(Offset.zero, const Offset(0, length), paint);
-    canvas.drawLine(Offset.zero, const Offset(length, 0), paint);
+    canvas.drawLine(Offset.zero, Offset(0, length), paint);
+    canvas.drawLine(Offset.zero, Offset(length, 0), paint);
     canvas.drawLine(Offset(size.width, 0), Offset(size.width - length, 0), paint);
     canvas.drawLine(Offset(size.width, 0), Offset(size.width, length), paint);
-    canvas.drawLine(Offset(0, size.height), const Offset(0, size.height - length), paint);
-    canvas.drawLine(Offset(0, size.height), const Offset(length, size.height), paint);
+    canvas.drawLine(Offset(0, size.height), Offset(0, size.height - length), paint);
+    canvas.drawLine(Offset(0, size.height), Offset(length, size.height), paint);
     canvas.drawLine(Offset(size.width, size.height), Offset(size.width - length, size.height), paint);
     canvas.drawLine(Offset(size.width, size.height), Offset(size.width, size.height - length), paint);
   }
