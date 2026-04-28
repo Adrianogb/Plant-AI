@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:image_picker/image_picker.dart';
 import 'dart:ui';
+import 'dart:io';
+import 'services/plant_net_service.dart';
+import 'screens/chat_screen.dart';
 
 void main() {
   runApp(const PlantAIApp());
@@ -41,6 +45,91 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
+  final ImagePicker _picker = ImagePicker();
+  List<File> _selectedImages = [];
+  bool _isLoading = false;
+
+  Future<void> _pickImage() async {
+    if (_selectedImages.length >= 5) return;
+    
+    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+    if (image != null) {
+      setState(() {
+        _selectedImages.add(File(image.path));
+      });
+    }
+  }
+
+  Future<void> _identifyPlant() async {
+    if (_selectedImages.isEmpty) return;
+
+    setState(() => _isLoading = true);
+
+    final results = await PlantNetService.identify(_selectedImages);
+
+    setState(() => _isLoading = false);
+
+    if (results != null && results['results'] != null && results['results'].isNotEmpty) {
+      final bestMatch = results['results'][0];
+      final speciesName = bestMatch['species']['scientificNameWithoutAuthor'];
+      final commonName = (bestMatch['species']['commonNames'] as List).isNotEmpty 
+          ? bestMatch['species']['commonNames'][0] 
+          : speciesName;
+
+      _showResultDialog(commonName, speciesName, bestMatch['score']);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Não foi possível identificar a planta. Tente outra foto.')),
+      );
+    }
+  }
+
+  void _showResultDialog(String commonName, String scientificName, double score) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.6,
+        decoration: const BoxDecoration(
+          color: Color(0xFF1D2022),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+        ),
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          children: [
+            Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 32),
+            const Icon(LucideIcons.checkCircle2, color: Color(0xFF54E98A), size: 64),
+            const SizedBox(height: 24),
+            Text('Planta Identificada!', style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 14, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Text(commonName, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+            Text(scientificName, style: TextStyle(fontSize: 16, fontStyle: FontStyle.italic, color: Colors.white.withOpacity(0.4))),
+            const SizedBox(height: 16),
+            Text('Confiança: ${(score * 100).toStringAsFixed(1)}%', style: const TextStyle(color: Color(0xFF54E98A), fontWeight: FontWeight.bold)),
+            const Spacer(),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF54E98A),
+                foregroundColor: const Color(0xFF003919),
+                minimumSize: const Size(double.infinity, 56),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => ChatScreen(initialPlantName: commonName)),
+                );
+              },
+              child: const Text('CONVERSAR COM ASSISTENTE', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -55,10 +144,7 @@ class _MainScreenState extends State<MainScreen> {
                 gradient: RadialGradient(
                   center: Alignment(-0.8, -0.6),
                   radius: 1.2,
-                  colors: [
-                    Color(0xFF005141),
-                    Colors.transparent,
-                  ],
+                  colors: [Color(0xFF005141), Colors.transparent],
                 ),
               ),
             ),
@@ -69,16 +155,12 @@ class _MainScreenState extends State<MainScreen> {
                 gradient: RadialGradient(
                   center: Alignment(0.8, 0.8),
                   radius: 1.2,
-                  colors: [
-                    Color(0xFF003919),
-                    Colors.transparent,
-                  ],
+                  colors: [Color(0xFF003919), Colors.transparent],
                 ),
               ),
             ),
           ),
           
-          // Main Content
           SafeArea(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -86,103 +168,69 @@ class _MainScreenState extends State<MainScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 16),
-                  // Header
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(LucideIcons.leaf, color: Color(0xFF54E98A), size: 28),
-                          const SizedBox(width: 8),
-                          Text(
-                            'PlantAI',
-                            style: GoogleFonts.inter(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: const Color(0xFF54E98A),
-                              letterSpacing: 1.2,
-                            ),
-                          ),
-                        ],
-                      ),
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(color: const Color(0xFF54E98A).withOpacity(0.3)),
-                          image: const DecorationImage(
-                            image: NetworkImage('https://i.pravatar.cc/150?u=plantai'),
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                  _buildHeader(),
                   const SizedBox(height: 48),
-                  // Hero Section
-                  const Text(
-                    'EXPLORADOR BOTÂNICO',
-                    style: TextStyle(
-                      color: Color(0xFF54E98A),
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 2,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  RichText(
-                    text: TextSpan(
-                      style: GoogleFonts.inter(
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        height: 1.2,
-                      ),
-                      children: const [
-                        TextSpan(text: 'Identifique sua '),
-                        TextSpan(
-                          text: 'Próxima Planta',
-                          style: TextStyle(color: Color(0xFF2ECC71)),
-                        ),
-                        TextSpan(text: ' com Precisão.'),
-                      ],
-                    ),
-                  ),
+                  _buildHero(),
                   const SizedBox(height: 32),
-                  // Central Upload Card
                   _buildUploadCard(),
                   const SizedBox(height: 24),
-                  // Stats Grid
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildStatCard(
-                          icon: LucideIcons.zap,
-                          title: 'IA Potência',
-                          subtitle: '98.4% Precisão',
-                          color: const Color(0xFF54E98A),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: _buildStatCard(
-                          icon: LucideIcons.sparkles,
-                          title: 'Dica do Dia',
-                          subtitle: 'Regue sua Jiboia!',
-                          color: const Color(0xFF4EDDBB),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 120), // Space for bottom nav
+                  _buildStatsGrid(),
+                  const SizedBox(height: 120),
                 ],
               ),
             ),
           ),
+          if (_isLoading)
+            Container(
+              color: Colors.black54,
+              child: const Center(child: CircularProgressIndicator(color: Color(0xFF54E98A))),
+            ),
         ],
       ),
       bottomNavigationBar: _buildBottomNav(),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Row(
+          children: [
+            const Icon(LucideIcons.leaf, color: Color(0xFF54E98A), size: 28),
+            const SizedBox(width: 8),
+            Text('PlantAI', style: GoogleFonts.inter(fontSize: 24, fontWeight: FontWeight.bold, color: const Color(0xFF54E98A), letterSpacing: 1.2)),
+          ],
+        ),
+        Container(
+          width: 40, height: 40,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: const Color(0xFF54E98A).withOpacity(0.3)),
+            image: const DecorationImage(image: NetworkImage('https://i.pravatar.cc/150?u=plantai'), fit: BoxFit.cover),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHero() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('EXPLORADOR BOTÂNICO', style: TextStyle(color: Color(0xFF54E98A), fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 2)),
+        const SizedBox(height: 8),
+        RichText(
+          text: TextSpan(
+            style: GoogleFonts.inter(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white, height: 1.2),
+            children: const [
+              TextSpan(text: 'Identifique sua '),
+              TextSpan(text: 'Próxima Planta', style: TextStyle(color: Color(0xFF2ECC71))),
+              TextSpan(text: ' com Precisão.'),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -196,98 +244,66 @@ class _MainScreenState extends State<MainScreen> {
       ),
       child: Column(
         children: [
-          // Scan Area
-          Container(
-            height: 300,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: const Color(0xFF191C1E).withOpacity(0.5),
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: Colors.white.withOpacity(0.05)),
-            ),
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF54E98A).withOpacity(0.1),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(LucideIcons.camera, color: Color(0xFF54E98A), size: 40),
+          GestureDetector(
+            onTap: _pickImage,
+            child: Container(
+              height: 300,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: const Color(0xFF191C1E).withOpacity(0.5),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: Colors.white.withOpacity(0.05)),
+              ),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  if (_selectedImages.isEmpty)
+                    Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(color: const Color(0xFF54E98A).withOpacity(0.1), shape: BoxShape.circle),
+                          child: const Icon(LucideIcons.camera, color: Color(0xFF54E98A), size: 40),
+                        ),
+                        const SizedBox(height: 16),
+                        const Text('Adicionar fotos', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+                        const SizedBox(height: 4),
+                        Text('Carregue até 5 imagens', style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 14)),
+                      ],
+                    )
+                  else
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(24),
+                      child: Image.file(_selectedImages.last, fit: BoxFit.cover, width: double.infinity, height: double.infinity),
                     ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'Adicionar fotos',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Carregue até 5 imagens',
-                      style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 14),
-                    ),
-                  ],
-                ),
-                // Reticle
-                Positioned.fill(
-                  child: Padding(
-                    padding: const EdgeInsets.all(32),
-                    child: CustomPaint(
-                      painter: ReticlePainter(color: const Color(0xFF54E98A)),
-                    ),
-                  ),
-                ),
-                Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(24),
-                    onTap: () {},
-                  ),
-                ),
-              ],
+                  Positioned.fill(child: Padding(padding: const EdgeInsets.all(32), child: CustomPaint(painter: ReticlePainter(color: const Color(0xFF54E98A))))),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 16),
-          // Photo Slots Placeholder
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: List.generate(5, (index) => _buildPhotoSlot()),
+            children: List.generate(5, (index) => _buildPhotoSlot(index)),
           ),
           const SizedBox(height: 16),
-          // Identify Button
-          Container(
-            width: double.infinity,
-            height: 56,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF2ECC71), Color(0xFF00B596)],
-              ),
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF2ECC71).withOpacity(0.2),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
+          GestureDetector(
+            onTap: _selectedImages.isNotEmpty ? _identifyPlant : null,
+            child: Container(
+              width: double.infinity, height: 56,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: _selectedImages.isNotEmpty 
+                      ? [const Color(0xFF2ECC71), const Color(0xFF00B596)]
+                      : [Colors.white10, Colors.white10],
                 ),
-              ],
-            ),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
                 borderRadius: BorderRadius.circular(16),
-                onTap: () {},
-                child: const Center(
-                  child: Text(
-                    'IDENTIFICAR PLANTA',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.5,
-                      color: Color(0xFF00210C),
-                    ),
-                  ),
+              ),
+              child: Center(
+                child: Text(
+                  'IDENTIFICAR PLANTA',
+                  style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.5, color: _selectedImages.isNotEmpty ? const Color(0xFF00210C) : Colors.white24),
                 ),
               ),
             ),
@@ -297,45 +313,41 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
-  Widget _buildPhotoSlot() {
+  Widget _buildPhotoSlot(int index) {
+    bool hasImage = index < _selectedImages.length;
     return Container(
-      width: 50,
-      height: 50,
+      width: 50, height: 50,
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.05),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        border: Border.all(color: hasImage ? const Color(0xFF54E98A) : Colors.white.withOpacity(0.1)),
       ),
-      child: Icon(LucideIcons.image, color: Colors.white.withOpacity(0.1), size: 20),
+      child: hasImage 
+          ? ClipRRect(borderRadius: BorderRadius.circular(10), child: Image.file(_selectedImages[index], fit: BoxFit.cover))
+          : Icon(LucideIcons.image, color: Colors.white.withOpacity(0.1), size: 20),
+    );
+  }
+
+  Widget _buildStatsGrid() {
+    return Row(
+      children: [
+        Expanded(child: _buildStatCard(icon: LucideIcons.zap, title: 'IA Potência', subtitle: '98.4% Precisão', color: const Color(0xFF54E98A))),
+        const SizedBox(width: 16),
+        Expanded(child: _buildStatCard(icon: LucideIcons.sparkles, title: 'Dica do Dia', subtitle: 'Regue sua Jiboia!', color: const Color(0xFF4EDDBB))),
+      ],
     );
   }
 
   Widget _buildStatCard({required IconData icon, required String title, required String subtitle, required Color color}) {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.03),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
-      ),
+      decoration: BoxDecoration(color: Colors.white.withOpacity(0.03), borderRadius: BorderRadius.circular(24), border: Border.all(color: Colors.white.withOpacity(0.1))),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(icon, color: color, size: 16),
-              const SizedBox(width: 8),
-              Text(
-                title,
-                style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12, fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
+          Row(children: [Icon(icon, color: color, size: 16), const SizedBox(width: 8), Text(title, style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12, fontWeight: FontWeight.bold))]),
           const SizedBox(height: 8),
-          Text(
-            subtitle,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-          ),
+          Text(subtitle, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
         ],
       ),
     );
@@ -349,13 +361,6 @@ class _MainScreenState extends State<MainScreen> {
         color: const Color(0xFF00210C).withOpacity(0.6),
         borderRadius: BorderRadius.circular(36),
         border: Border.all(color: Colors.white.withOpacity(0.1)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.3),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(36),
@@ -377,31 +382,22 @@ class _MainScreenState extends State<MainScreen> {
   Widget _buildNavItem(IconData icon, String label, int index) {
     bool isActive = _currentIndex == index;
     return GestureDetector(
-      onTap: () => setState(() => _currentIndex = index),
+      onTap: () {
+        setState(() => _currentIndex = index);
+        if (index == 1) { // Just for testing, go to chat
+           Navigator.push(context, MaterialPageRoute(builder: (context) => const ChatScreen()));
+        }
+      },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-        decoration: BoxDecoration(
-          color: isActive ? const Color(0xFF54E98A).withOpacity(0.2) : Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
-        ),
+        decoration: BoxDecoration(color: isActive ? const Color(0xFF54E98A).withOpacity(0.2) : Colors.transparent, borderRadius: BorderRadius.circular(20)),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icon,
-              color: isActive ? const Color(0xFF54E98A) : Colors.white.withOpacity(0.4),
-              size: 24,
-            ),
+            Icon(icon, color: isActive ? const Color(0xFF54E98A) : Colors.white.withOpacity(0.4), size: 24),
             const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-                color: isActive ? const Color(0xFF54E98A) : Colors.white.withOpacity(0.4),
-              ),
-            ),
+            Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isActive ? const Color(0xFF54E98A) : Colors.white.withOpacity(0.4))),
           ],
         ),
       ),
@@ -412,39 +408,19 @@ class _MainScreenState extends State<MainScreen> {
 class ReticlePainter extends CustomPainter {
   final Color color;
   ReticlePainter({required this.color});
-
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 2
-      ..style = PaintingStyle.stroke;
-
+    final paint = Paint()..color = color..strokeWidth = 2..style = PaintingStyle.stroke;
     const length = 20.0;
-
-    // Top Left
     canvas.drawLine(Offset.zero, const Offset(0, length), paint);
     canvas.drawLine(Offset.zero, const Offset(length, 0), paint);
-
-    // Top Right
     canvas.drawLine(Offset(size.width, 0), Offset(size.width - length, 0), paint);
     canvas.drawLine(Offset(size.width, 0), Offset(size.width, length), paint);
-
-    // Bottom Left
     canvas.drawLine(Offset(0, size.height), const Offset(0, size.height - length), paint);
     canvas.drawLine(Offset(0, size.height), const Offset(length, size.height), paint);
-
-    // Bottom Right
     canvas.drawLine(Offset(size.width, size.height), Offset(size.width - length, size.height), paint);
     canvas.drawLine(Offset(size.width, size.height), Offset(size.width, size.height - length), paint);
-    
-    // Border
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(Rect.fromLTWH(0, 0, size.width, size.height), const Radius.circular(12)),
-      paint..color = color.withOpacity(0.1),
-    );
   }
-
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
