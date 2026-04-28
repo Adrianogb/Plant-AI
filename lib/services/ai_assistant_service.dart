@@ -1,9 +1,10 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AIAssistantService {
   // Configurações OpenRouter (Opção 1)
-  static const String openRouterKey = "SUA_CHAVE_OPENROUTER_AQUI";
+  final String openRouterKey = dotenv.env['OPENROUTER_API_KEY'] ?? "";
   static const String openRouterModel = "google/gemini-2.0-flash-exp:free";
 
   // Configurações Ollama (Opção 2 - Fallback Automático)

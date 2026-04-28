@@ -3,12 +3,14 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-import 'services/plant_net_service.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'screens/chat_screen.dart';
 import 'screens/history_screen.dart';
 import 'screens/profile_screen.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: ".env");
   runApp(const PlantAIApp());
 }
 

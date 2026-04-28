@@ -1,8 +1,9 @@
 import 'dart:io';
 import 'package:dio/dio.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class PlantNetService {
-  static const String apiKey = "2b1068vmRfMBXgrbVkCOqN8X";
+  static final String apiKey = dotenv.env['PLANTNET_API_KEY'] ?? "";
   static const String baseUrl = "https://my-api.plantnet.org/v2/identify";
 
   static final Dio _dio = Dio();
