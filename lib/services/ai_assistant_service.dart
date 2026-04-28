@@ -1,20 +1,20 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AIAssistantService {
-  // Configurações OpenRouter (Opção 1)
-  final String openRouterKey = dotenv.env['OPENROUTER_API_KEY'] ?? "";
-  static const String openRouterModel = "google/gemini-2.0-flash-exp:free";
-
-  // Configurações Ollama (Opção 2 - Fallback Automático)
+  String _openRouterKey = "";
+  String _aiProvider = "OpenRouter";
+  String _openRouterModel = "nvidia/nemotron-3-super-120b-a12b:free";
+  String _ollamaModel = "gemma4:31b-cloud";
   String _ollamaBaseUrl = "http://localhost:11434";
-  static const String ollamaModel = "llama3";
   bool _isOllamaDiscovered = false;
 
   final List<Map<String, String>> _history = [];
 
   AIAssistantService() {
+    _initSettings();
     _history.add({
       'role': 'system',
       'content': """Você é um assistente especializado em botânica e fitopatologia. Sua função é identificar plantas ornamentais, agrícolas e silvestres, bem como diagnosticar sintomas de doenças e pragas a partir de descrições ou imagens fornecidas. 
@@ -43,16 +43,27 @@ Objetivo: Garantir que o usuário receba uma resposta precisa, completa e confi�
     });
   }
 
+  Future<void> _initSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    _aiProvider = prefs.getString('ai_provider') ?? 'OpenRouter';
+    _openRouterKey = prefs.getString('openrouter_key') ?? dotenv.env['OPENROUTER_API_KEY'] ?? "";
+    _openRouterModel = prefs.getString('openrouter_model') ?? "nvidia/nemotron-3-super-120b-a12b:free";
+    _ollamaModel = prefs.getString('ollama_model') ?? "gemma4:31b-cloud";
+  }
+
   Future<Map<String, dynamic>> sendMessage(String message) async {
+    await _initSettings(); // Recarrega chaves e modelos
     _history.add({'role': 'user', 'content': message});
 
     String? responseText;
 
-    if (openRouterKey != "SUA_CHAVE_OPENROUTER_AQUI" && openRouterKey.isNotEmpty) {
-      try {
-        responseText = await _callOpenRouter();
-      } catch (e) {
-        print("Erro OpenRouter: $e. Tentando fallback para Ollama...");
+    if (_aiProvider == 'OpenRouter') {
+      if (_openRouterKey.isNotEmpty) {
+        try {
+          responseText = await _callOpenRouter();
+        } catch (e) {
+          print("Erro OpenRouter: $e. Tentando fallback para Ollama...");
+        }
       }
     }
 
@@ -67,7 +78,7 @@ Objetivo: Garantir que o usuário receba uma resposta precisa, completa e confi�
 
     if (responseText == null) {
       return {
-        'text': "Olá! Por favor, configure sua chave do OpenRouter ou certifique-se de que o Ollama está ativo para que eu possa realizar a análise botânica. 🌿",
+        'text': "Olá! Por favor, configure sua chave do OpenRouter no Perfil ou certifique-se de que o Ollama está ativo. 🌿",
         'component': null,
         'artifact': null
       };
@@ -107,8 +118,8 @@ Objetivo: Garantir que o usuário receba uma resposta precisa, completa e confi�
     final uri = Uri.parse("https://openrouter.ai/api/v1/chat/completions");
     final response = await http.post(
       uri,
-      headers: {"Authorization": "Bearer $openRouterKey", "Content-Type": "application/json"},
-      body: jsonEncode({"model": openRouterModel, "messages": _history}),
+      headers: {"Authorization": "Bearer $_openRouterKey", "Content-Type": "application/json"},
+      body: jsonEncode({"model": _openRouterModel, "messages": _history}),
     );
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
@@ -123,7 +134,7 @@ Objetivo: Garantir que o usuário receba uma resposta precisa, completa e confi�
     final uri = Uri.parse("$_ollamaBaseUrl/api/chat");
     final response = await http.post(
       uri,
-      body: jsonEncode({"model": ollamaModel, "messages": _history, "stream": false}),
+      body: jsonEncode({"model": _ollamaModel, "messages": _history, "stream": false}),
     );
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);

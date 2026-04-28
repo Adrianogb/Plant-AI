@@ -1,27 +1,28 @@
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class PlantNetService {
-  static final String apiKey = dotenv.env['PLANTNET_API_KEY'] ?? "";
-  static const String baseUrl = "https://my-api.plantnet.org/v2/identify";
+  static const String defaultBaseUrl = "https://my-api.plantnet.org/v2/identify";
 
   static final Dio _dio = Dio();
 
   static Future<Map<String, dynamic>?> identify(List<File> images, {String project = 'all'}) async {
-    final String url = "$baseUrl/$project?api-key=$apiKey";
+    final prefs = await SharedPreferences.getInstance();
+    final String apiKey = prefs.getString('plantnet_key') ?? dotenv.env['PLANTNET_API_KEY'] ?? "";
+    
+    final String url = "$defaultBaseUrl/$project?api-key=$apiKey";
     
     try {
-      // Criamos a lista de arquivos para o Dio
       List<MultipartFile> multipartImages = [];
       List<String> organs = [];
 
       for (var file in images) {
         multipartImages.add(await MultipartFile.fromFile(file.path, filename: 'image.jpg'));
-        organs.add('leaf'); // Definimos como 'leaf' para todas as fotos
+        organs.add('leaf');
       }
 
-      // O FormData do Dio aceita listas para chaves repetidas
       FormData formData = FormData.fromMap({
         'images': multipartImages,
         'organs': organs,
@@ -30,11 +31,7 @@ class PlantNetService {
       final response = await _dio.post(
         url,
         data: formData,
-        options: Options(
-          headers: {
-            'accept': 'application/json',
-          },
-        ),
+        options: Options(headers: {'accept': 'application/json'}),
       );
 
       if (response.statusCode == 200) {
