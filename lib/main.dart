@@ -166,25 +166,33 @@ class _MainScreenState extends State<MainScreen> {
       body: Stack(
         children: [
           // Background Gradient Aesthetic
+          // Optimized Background (simpler gradients for better FPS)
           Positioned.fill(
             child: Container(
-              decoration: const BoxDecoration(
-                gradient: RadialGradient(
-                  center: Alignment(-0.8, -0.6),
-                  radius: 1.2,
-                  colors: [Color(0xFF005141), Colors.transparent],
-                ),
+              color: const Color(0xFF101415),
+            ),
+          ),
+          Positioned(
+            top: -100,
+            left: -100,
+            child: Container(
+              width: 300,
+              height: 300,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFF005141).withOpacity(0.3),
               ),
             ),
           ),
-          Positioned.fill(
+          Positioned(
+            bottom: -50,
+            right: -50,
             child: Container(
-              decoration: const BoxDecoration(
-                gradient: RadialGradient(
-                  center: Alignment(0.8, 0.8),
-                  radius: 1.2,
-                  colors: [Color(0xFF003919), Colors.transparent],
-                ),
+              width: 250,
+              height: 250,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFF003919).withOpacity(0.2),
               ),
             ),
           ),
@@ -263,8 +271,9 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   Widget _buildUploadCard() {
-    return Container(
-      padding: const EdgeInsets.all(16),
+    return RepaintBoundary(
+      child: Container(
+        padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.03),
         borderRadius: BorderRadius.circular(32),
@@ -341,8 +350,9 @@ class _MainScreenState extends State<MainScreen> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildPhotoSlot(int index) {
     bool hasImage = index < _selectedImages.length;
@@ -418,8 +428,8 @@ class _MainScreenState extends State<MainScreen> {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(36),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        child: Container(
+          color: const Color(0xFF00210C).withOpacity(0.9), // Opacidade fixa é muito mais leve que blur
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
