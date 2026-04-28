@@ -2,9 +2,11 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class AIAssistantService {
+  // Configurações OpenRouter (Opção 1)
   static const String openRouterKey = "SUA_CHAVE_OPENROUTER_AQUI";
   static const String openRouterModel = "google/gemini-2.0-flash-exp:free";
 
+  // Configurações Ollama (Opção 2 - Fallback Automático)
   String _ollamaBaseUrl = "http://localhost:11434";
   static const String ollamaModel = "llama3";
   bool _isOllamaDiscovered = false;
@@ -14,17 +16,27 @@ class AIAssistantService {
   AIAssistantService() {
     _history.add({
       'role': 'system',
-      'content': """Você é o Especialista Botânico do PlantAI. 
-Sua missão é ajudar usuários a identificar e cuidar de plantas com precisão científica e amabilidade.
+      'content': """Você é um assistente especializado em botânica e fitopatologia. Sua função é identificar plantas ornamentais, agrícolas e silvestres, bem como diagnosticar sintomas de doenças e pragas a partir de descrições ou imagens fornecidas. 
 
-DIRETRIZES:
-1. PENSAMENTO ESTRUTURADO (Chain of Thought): Sempre comece sua resposta internamente analisando os detalhes botânicos.
-2. GENERATIVE UI: Se você fornecer um guia de cuidados, retorne também um objeto JSON no final da mensagem seguindo este formato:
-   [UI_COMPONENT: {"type": "care_card", "data": {"watering": "Moderada", "light": "Sombra parcial", "temp": "20-30°C", "difficulty": "Fácil"}}]
-3. ARTIFACTS: Se criar uma ficha técnica completa, use:
-   [ARTIFACT: {"title": "Ficha Técnica: Monstera", "content": "..."}]
+Diretrizes de Especialista:
+- Sempre responda com **nome científico** e **nome popular** da planta ou doença.
+- Forneça uma descrição detalhada das características morfológicas (folhas, flores, caule, raízes) ou sintomas observados (manchas, necroses, deformações).
+- Explique **condições favoráveis** ao desenvolvimento da planta ou da doença.
+- Inclua informações sobre **importância econômica, riscos e impacto** quando relevante.
+- Apresente **estratégias de manejo e cuidados** recomendados, baseados em boas práticas agrícolas ou de jardinagem.
+- Mantenha o tom **profissional, claro e objetivo**, evitando termos vagos ou imprecisos.
+- Quando houver possibilidade de confusão entre doenças ou espécies, liste as alternativas e explique como diferenciá-las.
+- Não forneça diagnósticos médicos para humanos ou animais; limite-se ao contexto vegetal.
+- Se a informação não puder ser confirmada apenas pela descrição ou imagem, ressalte a necessidade de análise laboratorial ou consulta com um agrônomo/botânico.
 
-Use emojis 🌿 e seja encorajador!"""
+REGRAS ESTRUTURAIS DO APP:
+1. PENSAMENTO ESTRUTURADO (Chain of Thought): Antes da resposta final, realize uma análise botânica interna.
+2. GENERATIVE UI: Ao fornecer guias de cuidados, inclua OBRIGATORIAMENTE este JSON no final:
+   [UI_COMPONENT: {"type": "care_card", "data": {"watering": "Valor", "light": "Valor", "temp": "Valor", "difficulty": "Valor"}}]
+3. ARTIFACTS: Ao criar fichas técnicas detalhadas, use:
+   [ARTIFACT: {"title": "Título da Ficha", "content": "Conteúdo detalhado..."}]
+
+Objetivo: Garantir que o usuário receba uma resposta precisa, completa e confiável."""
     });
   }
 
@@ -33,7 +45,6 @@ Use emojis 🌿 e seja encorajador!"""
 
     String? responseText;
 
-    // Tentar Opção 1: OpenRouter
     if (openRouterKey != "SUA_CHAVE_OPENROUTER_AQUI" && openRouterKey.isNotEmpty) {
       try {
         responseText = await _callOpenRouter();
@@ -42,7 +53,6 @@ Use emojis 🌿 e seja encorajador!"""
       }
     }
 
-    // Tentar Opção 2: Ollama
     if (responseText == null) {
       if (!_isOllamaDiscovered) await _discoverOllama();
       try {
@@ -54,7 +64,7 @@ Use emojis 🌿 e seja encorajador!"""
 
     if (responseText == null) {
       return {
-        'text': "Olá! Configure sua inteligência para começarmos. 🌿",
+        'text': "Olá! Por favor, configure sua chave do OpenRouter ou certifique-se de que o Ollama está ativo para que eu possa realizar a análise botânica. 🌿",
         'component': null,
         'artifact': null
       };
@@ -67,7 +77,6 @@ Use emojis 🌿 e seja encorajador!"""
     Map<String, dynamic>? component;
     Map<String, dynamic>? artifact;
 
-    // Extrair Componente UI
     final compMatch = RegExp(r'\[UI_COMPONENT: (.*?)\]').firstMatch(text);
     if (compMatch != null) {
       try {
@@ -76,7 +85,6 @@ Use emojis 🌿 e seja encorajador!"""
       } catch (_) {}
     }
 
-    // Extrair Artefato
     final artMatch = RegExp(r'\[ARTIFACT: (.*?)\]').firstMatch(text);
     if (artMatch != null) {
       try {
@@ -92,7 +100,6 @@ Use emojis 🌿 e seja encorajador!"""
     };
   }
 
-  // Métodos de chamada (OpenRouter e Ollama) permanecem similares, retornando String
   Future<String?> _callOpenRouter() async {
     final uri = Uri.parse("https://openrouter.ai/api/v1/chat/completions");
     final response = await http.post(
@@ -125,7 +132,7 @@ Use emojis 🌿 e seja encorajador!"""
   }
 
   Future<void> _discoverOllama() async {
-    final candidates = ['http://localhost:11434', 'http://10.0.2.2:11434', for (var i = 1; i <= 10; i++) 'http://192.168.1.$i:11434'];
+    final candidates = ['http://localhost:11434', 'http://10.0.2.2:11434', for (var i = 1; i <= 20; i++) 'http://192.168.1.$i:11434', for (var i = 1; i <= 20; i++) 'http://192.168.15.$i:11434'];
     for (var url in candidates) {
       try {
         final res = await http.get(Uri.parse("$url/api/tags")).timeout(const Duration(milliseconds: 300));
