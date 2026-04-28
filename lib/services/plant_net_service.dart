@@ -8,7 +8,10 @@ class PlantNetService {
   static const String baseUrl = "https://my-api.plantnet.org/v2/identify";
 
   static Future<Map<String, dynamic>?> identify(List<File> images, {String project = 'all'}) async {
-    final uri = Uri.parse("$baseUrl/$project?api-key=$apiKey");
+    // Adicionamos os órgãos via query parameters pois o pacote 'http' não suporta chaves duplicadas no fields do MultipartRequest
+    String organsParams = images.map((_) => "&organs=leaf").join();
+    final uri = Uri.parse("$baseUrl/$project?api-key=$apiKey$organsParams");
+    
     final request = http.MultipartRequest('POST', uri);
 
     for (var i = 0; i < images.length; i++) {
@@ -19,9 +22,6 @@ class PlantNetService {
           contentType: MediaType('image', 'jpeg'),
         ),
       );
-      // For simplicity, we'll mark all as 'leaf' for now or 'other'
-      // In a real app, the user would select the organ
-      request.fields['organs'] = 'leaf';
     }
 
     try {
