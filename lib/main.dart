@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:image_picker/image_picker.dart';
-import 'dart:ui';
 import 'dart:io';
 import 'services/plant_net_service.dart';
 import 'screens/chat_screen.dart';
+import 'screens/history_screen.dart';
+import 'screens/profile_screen.dart';
 
 void main() {
   runApp(const PlantAIApp());
@@ -46,7 +47,7 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
   final ImagePicker _picker = ImagePicker();
-  List<File> _selectedImages = [];
+  final List<File> _selectedImages = [];
   bool _isLoading = false;
 
   Future<void> _pickImage() async {
@@ -163,67 +164,78 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       extendBody: true,
-      body: Stack(
+      body: IndexedStack(
+        index: _currentIndex,
         children: [
-          // Background Gradient Aesthetic
-          // Optimized Background (simpler gradients for better FPS)
-          Positioned.fill(
-            child: Container(
-              color: const Color(0xFF101415),
-            ),
-          ),
-          Positioned(
-            top: -100,
-            left: -100,
-            child: Container(
-              width: 300,
-              height: 300,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: const Color(0xFF005141).withOpacity(0.3),
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: -50,
-            right: -50,
-            child: Container(
-              width: 250,
-              height: 250,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: const Color(0xFF003919).withOpacity(0.2),
-              ),
-            ),
-          ),
-          
-          SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 16),
-                  _buildHeader(),
-                  const SizedBox(height: 48),
-                  _buildHero(),
-                  const SizedBox(height: 32),
-                  _buildUploadCard(),
-                  const SizedBox(height: 24),
-                  _buildStatsGrid(),
-                  const SizedBox(height: 160), // Aumentado de 120 para 160 para garantir visibilidade acima da barra flutuante
-                ],
-              ),
-            ),
-          ),
-          if (_isLoading)
-            Container(
-              color: Colors.black54,
-              child: const Center(child: CircularProgressIndicator(color: Color(0xFF54E98A))),
-            ),
+          _buildIdentifyPage(),
+          const HistoryScreen(),
+          const ProfileScreen(),
         ],
       ),
       bottomNavigationBar: _buildBottomNav(),
+    );
+  }
+
+  Widget _buildIdentifyPage() {
+    return Stack(
+      children: [
+        // Background Gradient Aesthetic
+        // Optimized Background (simpler gradients for better FPS)
+        Positioned.fill(
+          child: Container(
+            color: const Color(0xFF101415),
+          ),
+        ),
+        Positioned(
+          top: -100,
+          left: -100,
+          child: Container(
+            width: 300,
+            height: 300,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: const Color(0xFF005141).withOpacity(0.3),
+            ),
+          ),
+        ),
+        Positioned(
+          bottom: -50,
+          right: -50,
+          child: Container(
+            width: 250,
+            height: 250,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: const Color(0xFF003919).withOpacity(0.2),
+            ),
+          ),
+        ),
+        
+        SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 16),
+                _buildHeader(),
+                const SizedBox(height: 48),
+                _buildHero(),
+                const SizedBox(height: 32),
+                _buildUploadCard(),
+                const SizedBox(height: 24),
+                _buildStatsGrid(),
+                const SizedBox(height: 160), // Aumentado de 120 para 160 para garantir visibilidade acima da barra flutuante
+              ],
+            ),
+          ),
+        ),
+        if (_isLoading)
+          Container(
+            color: Colors.black54,
+            child: const Center(child: CircularProgressIndicator(color: Color(0xFF54E98A))),
+          ),
+      ],
     );
   }
 
@@ -448,9 +460,6 @@ class _MainScreenState extends State<MainScreen> {
     return GestureDetector(
       onTap: () {
         setState(() => _currentIndex = index);
-        if (index == 1) { // Just for testing, go to chat
-           Navigator.push(context, MaterialPageRoute(builder: (context) => const ChatScreen()));
-        }
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
