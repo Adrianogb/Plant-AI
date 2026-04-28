@@ -38,6 +38,7 @@ dependencies:
   http: ^1.6.0
   image_picker: ^1.2.1
   lucide_icons: ^0.257.0
+  dio: ^5.7.0
   animations: ^2.2.0
   flutter_blurhash: ^0.9.1
   google_generative_ai: ^0.4.7
